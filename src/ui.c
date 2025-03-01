@@ -47,16 +47,505 @@ void ui_event_Button2(lv_event_t * e)
 }
 
 ///////////////////// SCREENS ////////////////////
+typedef enum {
+    LV_100ASK_SKETCHPAD_TOOLBAR_OPT_ALL = 0,
+    LV_100ASK_SKETCHPAD_TOOLBAR_OPT_CW,
+    LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH,
+    LV_100ASK_SKETCHPAD_TOOLBAR_OPT_LAST
+}lv_100ask_sketchpad_toolbar_t;
 
+/*Data of canvas*/
+typedef struct {
+    lv_img_t img;
+    lv_img_dsc_t dsc;
+    lv_draw_line_dsc_t line_rect_dsc;
+} lv_100ask_sketchpad_t;
+
+/***********************
+ * GLOBAL VARIABLES
+ ***********************/
+
+/**********************
+ * GLOBAL PROTOTYPES
+ **********************/
+lv_obj_t * lv_100ask_sketchpad_create(lv_obj_t * parent);
+
+#define MY_CLASS &lv_100ask_sketchpad_class
+/**********************
+ *      TYPEDEFS
+ **********************/
+
+
+/**********************
+ *  STATIC PROTOTYPES
+ **********************/
+static void lv_100ask_sketchpad_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
+static void lv_100ask_sketchpad_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
+static void lv_100ask_sketchpad_toolbar_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
+static void lv_100ask_sketchpad_toolbar_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
+static void lv_100ask_sketchpad_event(const lv_obj_class_t * class_p, lv_event_t * e);
+static void lv_100ask_sketchpad_toolbar_event(const lv_obj_class_t * class_p, lv_event_t * e);
+static void sketchpad_toolbar_event_cb(lv_event_t * e);
+static void toolbar_set_event_cb(lv_event_t * e);
+
+/**********************
+ *  STATIC VARIABLES
+ **********************/
+const lv_obj_class_t lv_100ask_sketchpad_class = {
+        .constructor_cb = lv_100ask_sketchpad_constructor,
+        .destructor_cb = lv_100ask_sketchpad_destructor,
+        .event_cb = lv_100ask_sketchpad_event,
+        .instance_size = sizeof(lv_100ask_sketchpad_t),
+        .base_class = &lv_canvas_class
+};
+
+const lv_obj_class_t lv_100ask_sketchpad_toolbar_class = {
+        .constructor_cb = lv_100ask_sketchpad_toolbar_constructor,
+        .destructor_cb = lv_100ask_sketchpad_toolbar_destructor,
+        .event_cb = lv_100ask_sketchpad_toolbar_event,
+        .width_def = LV_SIZE_CONTENT,
+        .height_def = LV_SIZE_CONTENT,
+        .base_class = &lv_obj_class
+};
+
+/**********************
+ *      MACROS
+ **********************/
+#define CANVAS_WIDTH  196
+#define CANVAS_HEIGHT 196
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
+
+lv_obj_t * lv_100ask_sketchpad_create(lv_obj_t * parent)
+{
+    LV_LOG_INFO("begin");
+//    lv_obj_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_OFF);
+
+    lv_obj_t * obj = lv_obj_class_create_obj(MY_CLASS, parent);
+    lv_obj_class_init_obj(obj);
+    return obj;
+}
+
+
+/*=====================
+ * Other functions
+ *====================*/
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
+static void lv_100ask_sketchpad_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+{
+    LV_UNUSED(class_p);
+    LV_TRACE_OBJ_CREATE("begin");
+
+    lv_100ask_sketchpad_t * sketchpad = (lv_100ask_sketchpad_t *)obj;
+
+    sketchpad->dsc.header.always_zero = 0;
+    sketchpad->dsc.header.cf          = LV_IMG_CF_TRUE_COLOR;
+    sketchpad->dsc.header.h           = CANVAS_WIDTH;
+    sketchpad->dsc.header.w           = CANVAS_HEIGHT;
+    sketchpad->dsc.data_size          = 0;
+    sketchpad->dsc.data               = NULL;
+
+    lv_draw_line_dsc_init(&sketchpad->line_rect_dsc);
+    sketchpad->line_rect_dsc.width = 10;
+    sketchpad->line_rect_dsc.round_start = true;
+    sketchpad->line_rect_dsc.round_end = true;
+    sketchpad->line_rect_dsc.color = lv_palette_lighten(LV_PALETTE_RED, 1);//lv_color_white();
+    sketchpad->line_rect_dsc.opa = LV_OPA_COVER;
+
+    lv_img_set_src(obj, &sketchpad->dsc);
+    lv_obj_set_size(obj, CANVAS_HEIGHT, CANVAS_HEIGHT);
+
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+
+    /*toolbar*/
+    lv_obj_t * toolbar = lv_obj_class_create_obj(&lv_100ask_sketchpad_toolbar_class, obj);
+    lv_obj_class_init_obj(toolbar);
+
+    LV_TRACE_OBJ_CREATE("finished");
+}
+
+static void lv_100ask_sketchpad_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+{
+    LV_UNUSED(class_p);
+    LV_TRACE_OBJ_CREATE("begin");
+
+    lv_canvas_t * canvas = (lv_canvas_t *)obj;
+    lv_img_cache_invalidate_src(&canvas->dsc);
+}
+
+
+static void lv_100ask_sketchpad_event(const lv_obj_class_t * class_p, lv_event_t * e)
+{
+    LV_UNUSED(class_p);
+
+    lv_res_t res;
+
+    /*Call the ancestor's event handler*/
+    res = lv_obj_event_base(MY_CLASS, e);
+    if(res != LV_RES_OK) return;
+
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_100ask_sketchpad_t * sketchpad = (lv_100ask_sketchpad_t *)obj;
+
+    static lv_coord_t last_x, last_y = -32768;
+
+    if (code == LV_EVENT_PRESSING)
+    {
+        lv_indev_t * indev = lv_indev_get_act();
+        if(indev == NULL)  return;
+
+        lv_point_t point;
+        lv_indev_get_point(indev, &point);
+
+        lv_color_t c0;
+        c0.full = 10;
+
+        lv_point_t points[2];
+
+        /*Release or first use*/
+        if ((last_x == -32768) || (last_y == -32768))
+        {
+            last_x = point.x;
+            last_y = point.y;
+        }
+        else
+        {
+            points[0].x = last_x;
+            points[0].y = last_y;
+            points[1].x = point.x;
+            points[1].y = point.y;
+            last_x = point.x;
+            last_y = point.y;
+//            printf("x=%d,y=%d\r\n",point.x,point.y);
+            lv_canvas_draw_line(obj, points, 2, &sketchpad->line_rect_dsc);
+//            lv_canvas_set_px(obj, point.x, point.y, lv_color_black());
+        }
+    }
+
+        /*Loosen the brush*/
+    else if(code == LV_EVENT_RELEASED)
+    {
+        last_x = -32768;
+        last_y = -32768;
+    }
+}
+
+
+
+/*toolbar*/
+static void lv_100ask_sketchpad_toolbar_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+{
+    LV_UNUSED(class_p);
+    LV_TRACE_OBJ_CREATE("begin");
+
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_flex_grow(obj, 1);
+    lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_ROW);
+
+    static lv_coord_t sketchpad_toolbar_cw = LV_100ASK_SKETCHPAD_TOOLBAR_OPT_CW;
+    lv_obj_t * color = lv_label_create(obj);
+    lv_label_set_text(color, LV_SYMBOL_EDIT);
+    lv_obj_add_flag(color, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(color, sketchpad_toolbar_event_cb, LV_EVENT_ALL, &sketchpad_toolbar_cw);
+
+    static lv_coord_t sketchpad_toolbar_width = LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH;
+    lv_obj_t * size = lv_label_create(obj);
+    lv_label_set_text(size, LV_SYMBOL_EJECT);
+    lv_obj_add_flag(size, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(size, sketchpad_toolbar_event_cb, LV_EVENT_ALL, &sketchpad_toolbar_width);
+
+    LV_TRACE_OBJ_CREATE("finished");
+}
+
+
+static void lv_100ask_sketchpad_toolbar_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+{
+
+}
+
+
+static void lv_100ask_sketchpad_toolbar_event(const lv_obj_class_t * class_p, lv_event_t * e)
+{
+    LV_UNUSED(class_p);
+
+    lv_res_t res;
+
+    /*Call the ancestor's event handler*/
+    res = lv_obj_event_base(MY_CLASS, e);
+    if(res != LV_RES_OK) return;
+
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if (code == LV_EVENT_PRESSING)
+    {
+        lv_indev_t * indev = lv_indev_get_act();
+        if(indev == NULL)  return;
+
+        lv_point_t vect;
+        lv_indev_get_vect(indev, &vect);
+
+        lv_coord_t x = lv_obj_get_x(obj) + vect.x;
+        lv_coord_t y = lv_obj_get_y(obj) + vect.y;
+        lv_obj_set_pos(obj, x, y);
+    }
+}
+
+static void sketchpad_toolbar_event_cb(lv_event_t * e)
+{
+    lv_coord_t *toolbar_opt = lv_event_get_user_data(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_obj_t * toolbar= lv_obj_get_parent(obj);
+    lv_obj_t * sketchpad= lv_obj_get_parent(toolbar);
+    lv_100ask_sketchpad_t * sketchpad_t = (lv_100ask_sketchpad_t *)sketchpad;
+
+
+    if (code == LV_EVENT_CLICKED)
+    {
+        if ((*toolbar_opt) == LV_100ASK_SKETCHPAD_TOOLBAR_OPT_CW)
+        {
+            static lv_coord_t sketchpad_toolbar_cw = LV_100ASK_SKETCHPAD_TOOLBAR_OPT_CW;
+            lv_obj_t * cw = lv_colorwheel_create(sketchpad, true);
+            lv_obj_align_to(cw, obj, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+            lv_obj_add_event_cb(cw, toolbar_set_event_cb, LV_EVENT_RELEASED, &sketchpad_toolbar_cw);
+        }
+        else if((*toolbar_opt) == LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH)
+        {
+            static lv_coord_t sketchpad_toolbar_width = LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH;
+            lv_obj_t * slider = lv_slider_create(sketchpad);
+            lv_slider_set_value(slider, (int32_t)(sketchpad_t->line_rect_dsc.width), LV_ANIM_OFF);
+            lv_obj_align_to(slider, obj, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+            lv_obj_add_event_cb(slider, toolbar_set_event_cb, LV_EVENT_ALL, &sketchpad_toolbar_width);
+        }
+    }
+}
+
+static void toolbar_set_event_cb(lv_event_t * e)
+{
+    lv_coord_t *toolbar_opt = lv_event_get_user_data(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_100ask_sketchpad_t * sketchpad = (lv_100ask_sketchpad_t *)lv_obj_get_parent(obj);
+
+    if (code == LV_EVENT_RELEASED)
+    {
+        if ((*toolbar_opt) == LV_100ASK_SKETCHPAD_TOOLBAR_OPT_CW)
+        {
+            sketchpad->line_rect_dsc.color = lv_colorwheel_get_rgb(obj);
+            lv_obj_del(obj);
+        }
+        else if (*(toolbar_opt) == LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH)
+        {
+            lv_obj_del(obj);
+        }
+    }
+    else if (code == LV_EVENT_VALUE_CHANGED)
+    {
+        if((*toolbar_opt) == LV_100ASK_SKETCHPAD_TOOLBAR_OPT_WIDTH)
+        {
+            sketchpad->line_rect_dsc.width = (lv_coord_t)lv_slider_get_value(obj);
+        }
+    }
+}
+lv_obj_t * sketchpad;
+static lv_color_t cbuf[LV_CANVAS_BUF_SIZE_TRUE_COLOR(CANVAS_WIDTH, CANVAS_HEIGHT)];
+
+uint8_t target_img[28*28];
+
+// 平均池化降采样函数
+void resize_array(lv_color_t* src, int src_width, int src_height, int dst_width, int dst_height)
+{
+    // 检查尺寸是否符合降采样比例
+    if (src_width % dst_width != 0 || src_height % dst_height != 0) {
+    printf("Error: Source dimensions must be multiples of destination dimensions.\n");
+    return ;
+    }
+
+    // 计算子块大小
+    int block_width = src_width / dst_width;
+    int block_height = src_height / dst_height;
+
+    // 分配目标数组内存
+    uint8_t* dst = target_img;//(uint8_t*)calloc(dst_width * dst_height, sizeof(uint8_t));
+
+    // 遍历每个子块
+    for (int i = 0; i < dst_height; i++) {
+        for (int j = 0; j < dst_width; j++) {
+            int sum = 0;
+            // 计算当前子块的平均值
+            for (int bi = 0; bi < block_height; bi++) {
+                for (int bj = 0; bj < block_width; bj++) {
+                    int src_index = ((i * block_height + bi) * src_width) + (j * block_width + bj);
+                    sum += src[src_index].ch.red;
+                }
+            }
+            // 取平均值并截断到0-255
+            dst[i * dst_width + j] = (uint8_t)(sum / (block_width * block_height));
+        }
+    }
+
+    // return dst;
+}
+// 打印数组为静态格式
+void print_array(uint8_t* array, int size) {
+    for (int i = 0; i < size; ) {
+        // 每行打印28个元素
+        for (int j = 0; j < 28 && i < size; ++j, ++i) {
+            printf("%3d,", array[i]);
+        }
+        printf("\n");
+    }
+}
+void print_out_cbuf()
+{
+
+
+    // printf("cbuf size=%d\r\n",LV_CANVAS_BUF_SIZE_TRUE_COLOR(CANVAS_WIDTH, CANVAS_HEIGHT));
+
+    int dst_width = 28, dst_height = 28;
+    resize_array(cbuf, 196, 196, dst_width, dst_height);
+
+    // 打印结果（示例）
+//    for (int i = 0; i < dst_height; i++) {
+//        for (int j = 0; j < dst_width; j++) {
+//            printf("%3d ", dst[i * dst_width + j]);
+//        }
+//        printf("\n");
+//    }
+
+    // 打印结果为静态数组形式
+    // printf("static uint8_t resized_data[28*28] = {\n");
+    // print_array(dst, 28 * 28);
+    // printf("};\n");
+
+}
+
+lv_obj_t * label_DIS;
+static void btn_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+//    lv_obj_t * btn = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED) {
+//        static uint8_t cnt = 0;
+//        cnt++;
+//
+//        /*Get the first child of the button which is the label and change its text*/
+//        lv_obj_t * label = lv_obj_get_child(btn, 0);
+//        lv_label_set_text_fmt(label, "Button: %d", cnt);
+
+        lv_canvas_fill_bg(sketchpad, lv_color_black(), LV_OPA_COVER);
+
+        printf("button pressed!\r\n");
+    }
+}
+#include "mnist/mnist.h"
+static void btn_event_cb2(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if(code == LV_EVENT_CLICKED) {
+
+        printf("进行识别\r\n");
+        int dst_width = 28, dst_height = 28;
+        //50 *log2(x+1)
+        resize_array(cbuf, 196, 196, dst_width, dst_height);
+        uint32_t temp;
+        for(uint8_t i=0;i<28;i++)
+        {
+            for(uint8_t j=0;j<28;j++)
+            {
+                // temp= (50 * log2(target_img[i*28+j] +1));
+                temp=target_img[i*28+j]*6;
+                target_img[i*28+j]= temp>255?255:temp;
+                // target_img[i*28+j] =target_img[i*28+j]*6            
+                }
+        }
+        
+        // test_mnist(0,NULL);
+        char show_buff[20];
+        uint8_t res=calculate_mnist(target_img);
+        sprintf(show_buff,"NUM:--%d--",res);
+        lv_label_set_text(label_DIS, show_buff);
+    }
+}
+static void lv_my_style_1(void)
+{
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_radius(&style, 5);
+
+    /*Make a gradient*/
+    lv_style_set_width(&style, 100);
+    lv_style_set_height(&style, LV_SIZE_CONTENT);
+
+    lv_style_set_pad_ver(&style, 20);
+    lv_style_set_pad_left(&style, 5);
+
+    lv_style_set_x(&style, lv_pct(65));
+    lv_style_set_y(&style, 80);
+
+    /*Create an object with the new style*/
+    lv_obj_t * obj = lv_obj_create(lv_scr_act());
+    lv_obj_add_style(obj, &style, 0);
+
+     label_DIS = lv_label_create(obj);
+    lv_label_set_text(label_DIS, "NUM:");
+}
+void lv_100ask_sketchpad_simple_test(void)
+{
+
+    sketchpad = lv_100ask_sketchpad_create(lv_scr_act());
+
+    lv_canvas_set_buffer(sketchpad, cbuf, CANVAS_WIDTH, CANVAS_HEIGHT, LV_IMG_CF_TRUE_COLOR);
+//    lv_obj_center(sketchpad);
+//    lv_obj_align(sketchpad, LV_ALIGN_CENTER, -100, 0);
+//    lv_obj_align(sketchpad, LV_ALIGN_TOP_LEFT, 10, 10);
+//    lv_obj_set_scrollbar_mode(sketchpad, LV_SCROLLBAR_MODE_OFF);
+
+//    lv_canvas_fill_bg(sketchpad, lv_palette_lighten(LV_PALETTE_YELLOW, 3), LV_OPA_COVER);
+    lv_canvas_fill_bg(sketchpad, lv_color_black(), LV_OPA_COVER);
+
+
+
+    lv_obj_t * btn = lv_btn_create(lv_scr_act());     /*Add a button the current screen*/
+    lv_obj_set_pos(btn, 300, 10);                            /*Set its position*/
+    lv_obj_set_size(btn, 150, 50);                          /*Set its size*/
+    lv_obj_add_event_cb(btn, btn_event_cb, LV_EVENT_ALL, NULL);           /*Assign a callback to the button*/
+
+    lv_obj_t * label = lv_label_create(btn);          /*Add a label to the button*/
+    lv_label_set_text(label, "CLEAR");                     /*Set the labels text*/
+    lv_obj_center(label);
+
+    lv_obj_t * btn2 = lv_btn_create(lv_scr_act());     /*Add a button the current screen*/
+    lv_obj_set_pos(btn2, 300, 150);                            /*Set its position*/
+    lv_obj_set_size(btn2, 150, 50);                          /*Set its size*/
+    lv_obj_add_event_cb(btn2, btn_event_cb2, LV_EVENT_ALL, NULL);           /*Assign a callback to the button*/
+
+    lv_obj_t * label2 = lv_label_create(btn2);          /*Add a label to the button*/
+    lv_label_set_text(label2, "START");                     /*Set the labels text*/
+    lv_obj_center(label2);
+
+    lv_my_style_1();
+
+}
 void ui_init(void)
 {
-    LV_EVENT_GET_COMP_CHILD = lv_event_register_id();
+    // LV_EVENT_GET_COMP_CHILD = lv_event_register_id();
 
-    lv_disp_t * dispp = lv_disp_get_default();
-    lv_theme_t * theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
-                                               false, LV_FONT_DEFAULT);
-    lv_disp_set_theme(dispp, theme);
-    ui_Screen1_screen_init();
-    ui____initial_actions0 = lv_obj_create(NULL);
-    lv_disp_load_scr(ui_Screen1);
+    // lv_disp_t * dispp = lv_disp_get_default();
+    // lv_theme_t * theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
+    //                                            false, LV_FONT_DEFAULT);
+    // lv_disp_set_theme(dispp, theme);
+    // ui_Screen1_screen_init();
+    // ui____initial_actions0 = lv_obj_create(NULL);
+    // lv_disp_load_scr(ui_Screen1);
+    lv_100ask_sketchpad_simple_test();
 }

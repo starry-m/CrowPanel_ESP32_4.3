@@ -94,11 +94,11 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
       /*Set the coordinates*/
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
-      Serial.print( "Data x :" );
-      Serial.println( touch_last_x );
+      // Serial.print( "Data x :" );
+      // Serial.println( touch_last_x );
 
-      Serial.print( "Data y :" );
-      Serial.println( touch_last_y );
+      // Serial.print( "Data y :" );
+      // Serial.println( touch_last_y );
     }
     else if (touch_released())
     {
@@ -116,7 +116,7 @@ void setup()
 {
   Serial.begin( 115200 ); /*初始化串口*/
 
-  test_mnist(0,NULL);
+  
 
   pinMode(38, OUTPUT);
   digitalWrite(38, LOW);
@@ -175,6 +175,7 @@ void loop()
   digitalWrite(38, HIGH);
   if(led == 0)
   digitalWrite(38, LOW);
+  // lv_tick_inc(5);
   delay(50);
  
 }

@@ -105,6 +105,7 @@ uint8_t mnist_pic[28*28]={
 extern "C" {
 #endif
 int test_mnist(int argc, char** argv);
+int calculate_mnist(uint8_t img[]);
 #ifdef __cplusplus
 }
 #endif
