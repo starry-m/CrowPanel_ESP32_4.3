@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "mnist.h": "c",
+        "stdio.h": "c",
+        "arduino.h": "c",
+        "mnist_valid_q.h": "c",
+        "tinymaix.h": "c",
+        "float.h": "c",
+        "arch_esp32_dsp.h": "c",
+        "stdlib.h": "c",
+        "esp_dsp.h": "c"
+    }
+}

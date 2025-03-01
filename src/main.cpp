@@ -3,7 +3,11 @@
 #include <Arduino_GFX_Library.h>
 #include "ui.h"
 
-
+#include <stdlib.h>
+// #include "cifar/cifar.h"
+// #include "mbnet128/mbnet128.h"
+#include "mnist/mnist.h"
+// #include "vww96/vww96.h"
 //4.3
 #define SD_MOSI 11
 #define SD_MISO 13
@@ -110,7 +114,10 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 
 void setup()
 {
-  Serial.begin( 9600 ); /*初始化串口*/
+  Serial.begin( 115200 ); /*初始化串口*/
+
+  test_mnist(0,NULL);
+
   pinMode(38, OUTPUT);
   digitalWrite(38, LOW);
   pinMode(0, OUTPUT);//TOUCH-CS
