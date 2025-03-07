@@ -447,6 +447,9 @@ static void btn_event_cb(lv_event_t * e)
     }
 }
 #include "mnist/mnist.h"
+
+uint8_t volatile display_data = 0; 
+extern TaskHandle_t LED_Task_Handle;
 static void btn_event_cb2(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -473,6 +476,8 @@ static void btn_event_cb2(lv_event_t * e)
         char show_buff[20];
         uint8_t res=calculate_mnist(target_img);
         sprintf(show_buff,"NUM:--%d--",res);
+        display_data=res;
+        xTaskNotify(LED_Task_Handle, 0, eNoAction);
         lv_label_set_text(label_DIS, show_buff);
     }
 }

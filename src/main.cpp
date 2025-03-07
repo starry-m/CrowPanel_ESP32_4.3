@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <Arduino_GFX_Library.h>
 #include "ui.h"
-
+#include <ShiftRegister74HC595.h>
 #include <stdlib.h>
 // #include "cifar/cifar.h"
 // #include "mbnet128/mbnet128.h"
@@ -111,7 +111,73 @@ void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
   }
 }
 
+ShiftRegister74HC595<2> sr(17, 18, 37);
+uint8_t NUMBERS[10][8]={
+  {0x3C, 0x42, 0x81, 0x81, 0x81, 0x42, 0x3C, 0x00},//0
+  {0x04, 0x06, 0x04, 0x04, 0x04, 0x04, 0x0E, 0x00},//1
+  {0x3E, 0x41, 0x01, 0x3E, 0x40, 0x40, 0x7F, 0x00},//2
+  {0x3E, 0x41, 0x01, 0x1E, 0x01, 0x41, 0x3E, 0x00},//3
+  {0x10, 0x18, 0x24, 0x44, 0x7F, 0x04, 0x04, 0x00},//4
+  {0x7F, 0x40, 0x7E, 0x01, 0x01, 0x41, 0x3E, 0x00},//5
+  {0x3E, 0x40, 0x7E, 0x41, 0x41, 0x41, 0x3E, 0x00},//6
+  {0x7F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x00},//7
+  {0x3E, 0x41, 0x41, 0x3E, 0x41, 0x41, 0x3E, 0x00},//8
+  {0x3E, 0x41, 0x41, 0x3F, 0x01, 0x01, 0x3E, 0x00} //9
 
+};
+//行 8-15 列 0-7
+void decode_nums_to_pannel(uint8_t num)
+{
+  uint8_t *num_ptr = NUMBERS[num];
+  static uint8_t current_rows = 0;
+  uint8_t buf[2];
+  buf[0] = *(num_ptr+current_rows);
+  buf[1]=1 << current_rows;
+  // for (int i = 0; i < 8; i++)
+  // {
+  //   sr.setNoUpdate(i, *(num_ptr+current_rows) && 1<<i);
+  // }
+  sr.setAll(buf);
+  // sr.setNoUpdate(current_rows+8,1);
+  // sr.updateRegisters();
+  current_rows = (current_rows + 1) % 8;
+
+}
+
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+TaskHandle_t LED_Task_Handle = NULL;
+#ifdef __cplusplus
+    }
+#endif
+extern uint8_t volatile display_data;
+static void LEDPanel_Task(void* parameter)
+{	
+  
+    while (1)
+    {
+        // sr.setAllHigh();
+        // vTaskDelay(pdMS_TO_TICKS(1000));   /* 延时500个tick */
+        // // printf("LED_Task Running,LED1_ON\r\n");
+        
+        // sr.setAllLow();    
+        decode_nums_to_pannel(display_data);
+        vTaskDelay(pdMS_TO_TICKS(3));   /* 延时500个tick */		 		
+        // printf("LED_Task Running,LED1_OFF\r\n");
+    }
+}
+static TaskHandle_t lvgl_Task_Handle = NULL;
+static void lvgl_Task(void* parameter)
+{	
+    while (1)
+    {
+      lv_timer_handler();
+      // lv_tick_inc(5);
+      delay(50);
+    }
+}
 void setup()
 {
   Serial.begin( 115200 ); /*初始化串口*/
@@ -163,20 +229,36 @@ void setup()
   
 
   lv_timer_handler();
+  // sr.setNoUpdate(0,1);
+  // sr.setNoUpdate(8,1);
+  // sr.updateRegisters();
+  xTaskCreate(LEDPanel_Task,"LED_Task",4096,NULL,5,&LED_Task_Handle);
+  // xTaskCreate(lvgl_Task,"LVGL_Task",2048,NULL,5,&lvgl_Task_Handle);
+  
   
 }
-
+int sr_tick=0;
 void loop()
 {
   
   lv_timer_handler();
-    
   if(led == 1)
   digitalWrite(38, HIGH);
   if(led == 0)
   digitalWrite(38, LOW);
   // lv_tick_inc(5);
   delay(50);
+  // if(sr_tick %20 == 0)
+  // {
+  //   sr.setAllLow();
+  // }
+  // else if (sr_tick %35 == 0)
+  // {
+  //   /* code */
+  //   sr.setAllHigh();
+  // }
+  // sr_tick++;
+  
  
 }
 
