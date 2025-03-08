@@ -182,14 +182,8 @@ static void LEDPanel_Task(void* parameter)
   }
     while (1)
     {
-        // sr.setAllHigh();
-        // vTaskDelay(pdMS_TO_TICKS(1000));   /* 延时500个tick */
-        // // printf("LED_Task Running,LED1_ON\r\n");
-        
-        // sr.setAllLow();    
         decode_nums_to_pannel(display_data);
-        vTaskDelay(pdMS_TO_TICKS(3));   /* 延时500个tick */		 		
-        // printf("LED_Task Running,LED1_OFF\r\n");
+        vTaskDelay(pdMS_TO_TICKS(3));   
     }
 }
 static TaskHandle_t lvgl_Task_Handle = NULL;

@@ -95,10 +95,10 @@ int calculate_mnist(uint8_t img[])
 	TM_PRINTF("mnist demo\n");
 	tm_mdl_t mdl;
 
-	for(int i=0; i<28*28; i++){
-		TM_PRINTF("%3d,", img[i]);
-		if(i%28==27)TM_PRINTF("\n");
-	}
+	// for(int i=0; i<28*28; i++){
+	// 	TM_PRINTF("%3d,", img[i]);
+	// 	if(i%28==27)TM_PRINTF("\n");
+	// }
 
 	tm_mat_t in_uint8 = {3,28,28,1, {(mtype_t *) img}};
 	tm_mat_t in = {3,28,28,1, {NULL}};
